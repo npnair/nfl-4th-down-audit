@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: Play-by-play data loaded from nflverse by ingest/load_pbp.py
+    tables:
+      - name: pbp
+        description: One row per play, 2010 through the current season.
+      - name: load_log
+        description: When each season was last refreshed.

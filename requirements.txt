@@ -1,0 +1,6 @@
+# Pipeline (ingest + dbt)
+nflreadpy==0.1.5
+polars==2.0.0
+psycopg2-binary==2.9.13
+dbt-core==1.10.23
+dbt-postgres==1.9.1

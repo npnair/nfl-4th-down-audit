@@ -1,0 +1,13 @@
+nfl_fourth_down:
+  target: default
+  outputs:
+    default:
+      type: postgres
+      host: "{{ env_var('PGHOST') }}"
+      user: "{{ env_var('PGUSER') }}"
+      password: "{{ env_var('PGPASSWORD', '') }}"
+      port: "{{ env_var('PGPORT', '5432') | as_number }}"
+      dbname: "{{ env_var('PGDATABASE') }}"
+      schema: analytics
+      sslmode: "{{ env_var('PGSSLMODE', 'prefer') }}"
+      threads: 4

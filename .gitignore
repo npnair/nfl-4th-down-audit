@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+.streamlit/secrets.toml
+logs/
+dbt/.user.yml

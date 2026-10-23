@@ -1,0 +1,6 @@
+# Dashboard only (Streamlit Community Cloud installs this file)
+streamlit==1.66.1
+plotly==7.1.0
+pandas==3.0.5
+SQLAlchemy==2.1.6
+psycopg2-binary==2.9.13

@@ -1,0 +1,44 @@
+name: Weekly refresh
+
+on:
+  schedule:
+    # Tuesday and Friday mornings (UTC), after Monday and Thursday night games are in nflverse.
+    - cron: "17 12 * * 2,5"
+  workflow_dispatch:
+    inputs:
+      backfill_start:
+        description: "Reload every season from this year (leave blank to refresh only the current season)"
+        required: false
+        default: ""
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      - name: Load play by play
+        run: |
+          if [ -n "${{ github.event.inputs.backfill_start }}" ]; then
+            python ingest/load_pbp.py --start "${{ github.event.inputs.backfill_start }}"
+          else
+            python ingest/load_pbp.py --current
+          fi
+
+      - name: Build and test dbt models
+        run: |
+          # dbt reads PG* variables, parsed here from the single DATABASE_URL secret
+          export $(python scripts/pg_env.py | xargs)
+          cd dbt
+          dbt build --profiles-dir .

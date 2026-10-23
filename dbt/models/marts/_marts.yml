@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: fct_fourth_down_decisions
+    description: One row per 4th down decision with the expected points of going for it, kicking, and punting.
+    columns:
+      - name: play_key
+        tests: [unique, not_null]
+      - name: decision
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['go', 'field_goal', 'punt']
+      - name: recommended
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['go', 'field_goal', 'punt']
+      - name: go_ep
+        description: Expected points if the team goes for it.
+        tests: [not_null]
+      - name: ep_lost
+        description: Expected points given up by the choice versus the best option. Zero when the coach chose the best option.
+
+  - name: mart_coach_season
+    description: Season level 4th down report card for each head coach (competitive situations only).
+    tests:
+      - unique:
+          arguments:
+            column_name: "coach || '-' || season"
+    columns:
+      - name: coach
+        tests: [not_null]
+
+  - name: mart_coach_career
+    description: Career 4th down grades since 2010.
+    columns:
+      - name: coach
+        tests: [unique, not_null]
+
+  - name: mart_league_season
+    description: League wide aggressiveness and expected points lost per game by season.
+    columns:
+      - name: season
+        tests: [unique, not_null]
+
+  - name: mart_team_week_offense
+    description: Weekly offensive efficiency by team.
+
+  - name: mart_refresh_status
+    description: Latest season, week, and refresh time.

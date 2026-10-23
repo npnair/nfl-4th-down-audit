@@ -1,0 +1,32 @@
+name: nfl_fourth_down
+version: "1.0.0"
+config-version: 2
+profile: nfl_fourth_down
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+vars:
+  # Situations are graded only when the game is still competitive and not in a two minute drill,
+  # because expected points ignores the clock and the score.
+  min_wp: 0.10
+  max_wp: 0.90
+  min_half_seconds: 120
+  # Furthest a field goal or punt is treated as a realistic option.
+  max_fg_yardline: 45
+  min_punt_yardline: 30
+  # Going for it beats the best kick by at least this many expected points: a clear go.
+  clear_go_threshold: 0.5
+
+models:
+  nfl_fourth_down:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: table
+      +schema: intermediate
+    marts:
+      +materialized: table
+      +schema: marts
