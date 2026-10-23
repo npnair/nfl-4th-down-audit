@@ -1,6 +1,6 @@
 {% macro ydstogo_bucket(col) -%}
     case
-        when {{ col }} <= 5 then {{ col }}::text
+        when {{ col }} <= 5 then cast({{ col }} as {{ dbt.type_string() }})
         when {{ col }} <= 7 then '6-7'
         when {{ col }} <= 10 then '8-10'
         else '11+'

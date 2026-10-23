@@ -23,11 +23,7 @@ models:
         description: Expected points given up by the choice versus the best option. Zero when the coach chose the best option.
 
   - name: mart_coach_season
-    description: Season level 4th down report card for each head coach (competitive situations only).
-    tests:
-      - unique:
-          arguments:
-            column_name: "coach || '-' || season"
+    description: Season level 4th down report card for each head coach (competitive situations only). One row per coach and season, checked by tests/assert_one_row_per_coach_season.sql.
     columns:
       - name: coach
         tests: [not_null]

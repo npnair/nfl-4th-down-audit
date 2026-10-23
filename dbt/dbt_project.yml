@@ -22,7 +22,9 @@ vars:
 models:
   nfl_fourth_down:
     staging:
-      +materialized: view
+      # A view on Postgres. On BigQuery a view is re-run by every model that reads it, so each of the
+      # ten downstream models would rescan raw.pbp; a table scans it once per refresh instead.
+      +materialized: "{{ 'table' if target.type == 'bigquery' else 'view' }}"
       +schema: staging
     intermediate:
       +materialized: table

@@ -2,7 +2,7 @@
 select
     game_id,
     play_id,
-    game_id || '_' || play_id::text            as play_key,
+    game_id || '_' || cast(play_id as {{ dbt.type_string() }}) as play_key,
     season,
     week,
     season_type,
@@ -33,7 +33,7 @@ select
     coalesce(success, 0) = 1                   as is_success,
     coalesce(pass, 0) = 1                      as is_pass,
     coalesce(rush, 0) = 1                      as is_rush,
-    "desc"                                     as play_description
+    {{ adapter.quote('desc') }}                as play_description
 from {{ source('raw', 'pbp') }}
 where season_type in ('REG', 'POST')
   and posteam is not null

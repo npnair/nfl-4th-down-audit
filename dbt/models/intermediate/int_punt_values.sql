@@ -10,7 +10,7 @@ with punts as (
 ),
 
 grid as (
-    select generate_series(1, 99) as yardline_100
+    select yardline_100 from {{ int_series(1, 99, 'yardline_100') }}
 )
 
 select

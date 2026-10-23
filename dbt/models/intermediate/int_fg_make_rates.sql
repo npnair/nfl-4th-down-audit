@@ -12,16 +12,16 @@ with attempts as (
 ),
 
 grid as (
-    select e.era, g.yardline_100
+    select e.era, yardline_100
     from (select distinct era from attempts) e
-    cross join generate_series(1, 50) as g(yardline_100)
+    cross join {{ int_series(1, 50, 'yardline_100') }}
 )
 
 select
     g.era,
     g.yardline_100,
     g.yardline_100 + 18 as kick_distance,
-    sum(a.made)::numeric / sum(a.attempts) as make_rate,
+    {{ as_decimal('sum(a.made)') }} / sum(a.attempts) as make_rate,
     sum(a.attempts) as attempts
 from grid g
 join attempts a

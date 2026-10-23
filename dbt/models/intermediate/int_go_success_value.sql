@@ -6,7 +6,7 @@ with kickoff as (
 
 select
     {{ ydstogo_bucket('p.ydstogo') }}          as ydstogo_bucket,
-    least(ceil(p.yardline_100 / 5.0), 20)::int as yardline_bucket,
+    cast(least(ceil(p.yardline_100 / 5.0), 20) as {{ dbt.type_int() }}) as yardline_bucket,
     avg(case when p.is_touchdown then 7 - k.kickoff_ep else p.ep_after end) as success_ep,
     count(*) as conversions
 from {{ ref('stg_plays') }} p

@@ -16,7 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
+      # Repo variable WAREHOUSE picks the target: bigquery, or postgres (the default).
+      WAREHOUSE: ${{ vars.WAREHOUSE || 'postgres' }}
+      DBT_TARGET: ${{ vars.WAREHOUSE || 'postgres' }}
+      # Postgres
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # BigQuery
+      GCP_PROJECT: ${{ vars.GCP_PROJECT }}
+      BQ_LOCATION: ${{ vars.BQ_LOCATION || 'US' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,6 +35,14 @@ jobs:
       - name: Install
         run: pip install -r requirements.txt
 
+      - name: Authenticate to Google Cloud
+        if: env.WAREHOUSE == 'bigquery'
+        # Writes the service account key to a file and sets GOOGLE_APPLICATION_CREDENTIALS,
+        # which both the loader and dbt pick up.
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
       - name: Load play by play
         run: |
           if [ -n "${{ github.event.inputs.backfill_start }}" ]; then
@@ -38,7 +53,9 @@ jobs:
 
       - name: Build and test dbt models
         run: |
-          # dbt reads PG* variables, parsed here from the single DATABASE_URL secret
-          export $(python scripts/pg_env.py | xargs)
+          if [ "$WAREHOUSE" = "postgres" ]; then
+            # dbt reads PG* variables, parsed here from the single DATABASE_URL secret
+            export $(python scripts/pg_env.py | xargs)
+          fi
           cd dbt
           dbt build --profiles-dir .

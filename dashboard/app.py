@@ -1,11 +1,15 @@
-"""4th Down Audit dashboard. Reads the dbt marts from Postgres."""
+"""4th Down Audit dashboard. Reads the dbt marts from BigQuery or Postgres.
+
+BigQuery is used when a `gcp_service_account` secret is configured or WAREHOUSE=bigquery;
+otherwise the app reads Postgres from DATABASE_URL.
+"""
 
 import os
+import re
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from sqlalchemy import create_engine
 
 st.set_page_config(page_title="4th Down Audit", page_icon="🏈", layout="wide")
 
@@ -18,13 +22,22 @@ GRID = "rgba(127,127,127,0.18)"
 
 # ---------- data ----------
 
+def secret(name):
+    try:
+        return st.secrets[name]
+    except Exception:
+        return None
+
+
+def warehouse() -> str:
+    choice = os.environ.get("WAREHOUSE") or secret("WAREHOUSE")
+    if choice:
+        return choice
+    return "bigquery" if secret("gcp_service_account") else "postgres"
+
+
 def database_url() -> str:
-    url = os.environ.get("DATABASE_URL")
-    if not url:
-        try:
-            url = st.secrets["DATABASE_URL"]
-        except Exception:
-            url = None
+    url = os.environ.get("DATABASE_URL") or secret("DATABASE_URL")
     if not url:
         st.error("DATABASE_URL is not configured.")
         st.stop()
@@ -35,13 +48,42 @@ def database_url() -> str:
 
 
 @st.cache_resource
-def engine():
+def connection():
+    if warehouse() == "bigquery":
+        from google.cloud import bigquery
+
+        info = secret("gcp_service_account")
+        if info:
+            from google.oauth2 import service_account
+
+            info = dict(info)
+            creds = service_account.Credentials.from_service_account_info(info)
+            return bigquery.Client(credentials=creds, project=info["project_id"])
+        # Local development: `gcloud auth application-default login` and GCP_PROJECT.
+        return bigquery.Client(project=os.environ.get("GCP_PROJECT"))
+
+    from sqlalchemy import create_engine
+
     return create_engine(database_url(), pool_pre_ping=True)
 
 
 @st.cache_data(ttl=3600)
 def query(sql: str, **params) -> pd.DataFrame:
-    return pd.read_sql_query(sql, engine(), params=params or None)
+    """Run a query written with @name parameters on whichever warehouse is configured.
+
+    Results are cached for an hour, so a busy day costs a handful of BigQuery queries, not one per visitor.
+    """
+    conn = connection()
+    if warehouse() == "bigquery":
+        from google.cloud import bigquery
+
+        kinds = {int: "INT64", str: "STRING", float: "FLOAT64"}
+        config = bigquery.QueryJobConfig(
+            query_parameters=[bigquery.ScalarQueryParameter(k, kinds[type(v)], v) for k, v in params.items()]
+        )
+        return conn.query(sql, job_config=config).to_dataframe(create_bqstorage_client=False)
+    # psycopg2 style placeholders: @season -> %(season)s
+    return pd.read_sql_query(re.sub(r"@(\w+)", r"%(\1)s", sql), conn, params=params or None)
 
 
 def base_layout(fig, height=420, y_title=None, x_title=None, y_format=None):
@@ -59,6 +101,7 @@ def base_layout(fig, height=420, y_title=None, x_title=None, y_format=None):
     return fig
 
 
+WAREHOUSE_NAMES = {"bigquery": "BigQuery", "postgres": "Postgres"}
 DECISION_LABELS = {"go": "Go for it", "field_goal": "Field goal", "punt": "Punt"}
 
 status = query("select * from marts.mart_refresh_status").iloc[0]
@@ -242,7 +285,7 @@ with tab_plays:
         select week, defense as opponent, qtr, ydstogo, yardline_100, score_differential, decision, recommended,
                go_ep, fg_ep, punt_ep, ep_lost, conversion_rate, play_description
         from marts.fct_fourth_down_decisions
-        where is_graded and season = %(season)s and offense_coach = %(coach)s
+        where is_graded and season = @season and offense_coach = @coach
         order by ep_lost desc, week
         """,
         season=int(season_p),
@@ -274,7 +317,7 @@ with tab_plays:
 
 with tab_method:
     st.markdown(
-        """
+        f"""
 ### How a decision is graded
 
 Every 4th down has three options. Each one is valued in **expected points (EP)**, the average number of
@@ -308,7 +351,7 @@ Expected points ignores the clock and the score, so late game and lopsided situa
 * League average rates do not know about a specific team's offense, kicker, or weather.
 * Fake punts and fake field goals count as going for it.
 
-Data: [nflverse](https://github.com/nflverse) play by play. Pipeline: Python → Postgres → dbt → Streamlit,
-refreshed weekly by GitHub Actions.
+Data: [nflverse](https://github.com/nflverse) play by play. Pipeline: Python → {WAREHOUSE_NAMES[warehouse()]} → dbt → Streamlit,
+refreshed twice a week by GitHub Actions.
 """
     )

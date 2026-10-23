@@ -1,4 +1,9 @@
 -- One row per 4th down decision, with the expected points of each option and what the coach chose.
+{% if target.type == 'bigquery' -%}
+-- The dashboard filters this table by season and coach, so BigQuery stores rows in that order
+-- and reads only the blocks a query needs.
+{{ config(cluster_by=['season', 'offense_coach']) }}
+{%- endif %}
 with plays as (
     select
         *,
@@ -9,7 +14,7 @@ with plays as (
         end as decision,
         {{ ydstogo_bucket('ydstogo') }}            as ydstogo_bucket,
         {{ field_zone('yardline_100') }}           as field_zone,
-        least(ceil(yardline_100 / 5.0), 20)::int   as yardline_bucket,
+        cast(least(ceil(yardline_100 / 5.0), 20) as {{ dbt.type_int() }}) as yardline_bucket,
         case when yardline_100 + 7 <= 20 then 80 else 100 - (yardline_100 + 7) end as fg_miss_opp_yardline
     from {{ ref('stg_plays') }}
     where down = 4
@@ -59,7 +64,7 @@ valued as (
 scored as (
     select
         *,
-        greatest(go_ep, fg_ep, punt_ep) as best_ep,
+        {{ greatest_ignore_nulls('go_ep', 'fg_ep', 'punt_ep') }} as best_ep,
         case decision
             when 'go' then go_ep
             when 'field_goal' then fg_ep
@@ -91,16 +96,16 @@ select
         when best_ep = fg_ep then 'field_goal'
         else 'punt'
     end                                                   as recommended,
-    round(conversion_rate::numeric, 3)                    as conversion_rate,
-    round(fg_make_rate::numeric, 3)                       as fg_make_rate,
-    round(go_ep::numeric, 3)                              as go_ep,
-    round(fg_ep::numeric, 3)                              as fg_ep,
-    round(punt_ep::numeric, 3)                            as punt_ep,
-    round(chosen_ep::numeric, 3)                          as chosen_ep,
-    round((best_ep - chosen_ep)::numeric, 3)              as ep_lost,
+    {{ round_to('conversion_rate', 3) }}                 as conversion_rate,
+    {{ round_to('fg_make_rate', 3) }}                    as fg_make_rate,
+    {{ round_to('go_ep', 3) }}                           as go_ep,
+    {{ round_to('fg_ep', 3) }}                           as fg_ep,
+    {{ round_to('punt_ep', 3) }}                         as punt_ep,
+    {{ round_to('chosen_ep', 3) }}                       as chosen_ep,
+    {{ round_to('best_ep - chosen_ep', 3) }}             as ep_lost,
     -- How much better going for it is than the best kick. Positive means "should go".
-    round((go_ep - greatest(fg_ep, punt_ep))::numeric, 3) as go_advantage,
-    round(ep_after::numeric, 3)                           as actual_ep_after,
+    {{ round_to('go_ep - ' ~ greatest_ignore_nulls('fg_ep', 'punt_ep'), 3) }} as go_advantage,
+    {{ round_to('ep_after', 3) }}                        as actual_ep_after,
     is_converted,
     play_description,
     wp between {{ var('min_wp') }} and {{ var('max_wp') }}

@@ -1,13 +1,31 @@
+# Two targets for the same models:
+#   postgres  local Docker database (and the original Neon setup)
+#   bigquery  production warehouse
+# Pick one with DBT_TARGET (defaults to postgres), or pass --target on the command line.
 nfl_fourth_down:
-  target: default
+  target: "{{ env_var('DBT_TARGET', 'postgres') }}"
   outputs:
-    default:
+    postgres:
       type: postgres
-      host: "{{ env_var('PGHOST') }}"
-      user: "{{ env_var('PGUSER') }}"
+      host: "{{ env_var('PGHOST', 'localhost') }}"
+      user: "{{ env_var('PGUSER', 'nfl') }}"
       password: "{{ env_var('PGPASSWORD', '') }}"
       port: "{{ env_var('PGPORT', '5432') | as_number }}"
-      dbname: "{{ env_var('PGDATABASE') }}"
+      dbname: "{{ env_var('PGDATABASE', 'nfl') }}"
       schema: analytics
       sslmode: "{{ env_var('PGSSLMODE', 'prefer') }}"
       threads: 4
+
+    bigquery:
+      type: bigquery
+      # Application default credentials: a service account key in CI
+      # (GOOGLE_APPLICATION_CREDENTIALS), or `gcloud auth application-default login` locally.
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT', 'set-GCP_PROJECT') }}"
+      dataset: analytics
+      location: "{{ env_var('BQ_LOCATION', 'US') }}"
+      threads: 4
+      job_execution_timeout_seconds: 300
+      # Stop any single dbt query that would scan more than 2 GB, as a guard against a runaway cost.
+      maximum_bytes_billed: 2000000000
+      priority: interactive
