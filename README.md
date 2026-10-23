@@ -4,7 +4,7 @@ How much expected value do NFL head coaches leave on the field with their 4th do
 
 This project grades every 4th down since 2010 (about 65,000 decisions) by comparing what the coach did with the option that had the highest expected points. It refreshes automatically twice a week during the season, so the current year's leaderboard stays live.
 
-**Live dashboard:** _link coming soon_
+**Live dashboard:** [nfl-4th-down-audit.streamlit.app](https://nfl-4th-down-audit.streamlit.app/)
 
 ## What it shows
 
