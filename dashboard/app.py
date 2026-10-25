@@ -1,9 +1,11 @@
 """4th Down Audit dashboard. Reads the dbt marts from BigQuery or Postgres.
 
-BigQuery is used when a `gcp_service_account` secret is configured or WAREHOUSE=bigquery;
-otherwise the app reads Postgres from DATABASE_URL.
+BigQuery is used when a service account key is in the secrets (GCP_SA_KEY, the key file's JSON
+pasted as is, or a [gcp_service_account] table) or WAREHOUSE=bigquery; otherwise the app reads
+Postgres from DATABASE_URL.
 """
 
+import json
 import os
 import re
 
@@ -29,11 +31,20 @@ def secret(name):
         return None
 
 
+def service_account_info():
+    """The service account key from Streamlit secrets, or None."""
+    raw = secret("GCP_SA_KEY")
+    if raw:
+        return json.loads(raw)
+    table = secret("gcp_service_account")
+    return dict(table) if table else None
+
+
 def warehouse() -> str:
     choice = os.environ.get("WAREHOUSE") or secret("WAREHOUSE")
     if choice:
         return choice
-    return "bigquery" if secret("gcp_service_account") else "postgres"
+    return "bigquery" if service_account_info() else "postgres"
 
 
 def database_url() -> str:
@@ -52,11 +63,10 @@ def connection():
     if warehouse() == "bigquery":
         from google.cloud import bigquery
 
-        info = secret("gcp_service_account")
+        info = service_account_info()
         if info:
             from google.oauth2 import service_account
 
-            info = dict(info)
             creds = service_account.Credentials.from_service_account_info(info)
             return bigquery.Client(credentials=creds, project=info["project_id"])
         # Local development: `gcloud auth application-default login` and GCP_PROJECT.

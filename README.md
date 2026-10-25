@@ -101,17 +101,12 @@ cd dbt && dbt build --profiles-dir .
    * Secret `GCP_SA_KEY`: the full JSON key.
    * Variables `WAREHOUSE` = `bigquery` and `GCP_PROJECT` = your project ID (optionally `BQ_LOCATION`, default `US`).
 4. **Backfill:** run the **Weekly refresh** workflow manually with `backfill_start` set to `2010`.
-5. **Streamlit Community Cloud:** add the key to the app's secrets as a table, and the dashboard switches to BigQuery automatically:
+5. **Streamlit Community Cloud:** in the app's settings, add the key to Secrets by pasting the whole JSON file between triple quotes. The dashboard switches to BigQuery automatically:
 
    ```toml
-   [gcp_service_account]
-   type = "service_account"
-   project_id = "your-project-id"
-   private_key_id = "..."
-   private_key = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-   client_email = "...@your-project-id.iam.gserviceaccount.com"
-   client_id = "..."
-   token_uri = "https://oauth2.googleapis.com/token"
+   GCP_SA_KEY = '''
+   { ...contents of the key file... }
+   '''
    ```
 
 The original Postgres deployment still works: leave `WAREHOUSE` unset (or `postgres`), set the `DATABASE_URL` secret to a Neon connection string, and give the Streamlit app the same `DATABASE_URL`.
